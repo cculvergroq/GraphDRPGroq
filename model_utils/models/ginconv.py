@@ -71,9 +71,14 @@ class GINConvNet(torch.nn.Module):
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(0.5)
 
+    #def forward(self, data):
+    # The below is nicer but not working quite right...
+    #def forward(self, x, edge_index, batch, target):
+    # TODO: IF I keep forward like this I need to go 
+    # look for all model calls and fix them!
     def forward(self, data):
         # import ipdb; ipdb.set_trace()
-        x, edge_index, batch = data.x, data.edge_index, data.batch
+        x, edge_index, batch = data[0], data[1], data[2]
         #print(data)
         #print(x)
         #print(data.target)
@@ -92,7 +97,7 @@ class GINConvNet(torch.nn.Module):
         x = F.dropout(x, p=0.2, training=self.training)
 
         # protein input feed-forward:
-        target = data.target
+        target = data[3]
         target = target[:, None, :]  # [batch_size, 1, num_genes]; [256, 1, 942]; [256, 1, 958]
 
         # 1d conv layers

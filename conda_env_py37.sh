@@ -15,7 +15,9 @@ conda install -c conda-forge h5py=3.1 --yes
 conda install -c bioconda pubchempy --yes
 conda install -c rdkit rdkit --yes
 conda install -c anaconda networkx --yes
-conda install -c conda-forge pyarrow=10.0 --yes
+#conda install -c conda-forge pyarrow=10.0 --yes
+pip install pyarrow # installed pyarrow=12.0.1
+# above comments say to use python=3.7, but pyarrow=10.0 conflicts according to conda
 
 conda install -c pyston psutil --yes
 
