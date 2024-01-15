@@ -71,15 +71,9 @@ class GINConvNet(torch.nn.Module):
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(0.5)
 
-    #def forward(self, data):
-    # The below is nicer but not working quite right...
-    #def forward(self, x, edge_index, batch, target):
-    # TODO: IF I keep forward like this I need to go 
-    # look for all model calls and fix them!
     def forward(self, data):
         # import ipdb; ipdb.set_trace()
-        x, edge_index, batch = data[0], data[1], data[2]
-        #print(data)
+        x, edge_index, batch = data.x, data.edge_index, data.batch
         #print(x)
         #print(data.target)
         x = F.relu(self.conv1(x, edge_index))
@@ -97,7 +91,7 @@ class GINConvNet(torch.nn.Module):
         x = F.dropout(x, p=0.2, training=self.training)
 
         # protein input feed-forward:
-        target = data[3]
+        target = data.target
         target = target[:, None, :]  # [batch_size, 1, num_genes]; [256, 1, 942]; [256, 1, 958]
 
         # 1d conv layers
@@ -132,3 +126,21 @@ class GINConvNet(torch.nn.Module):
         out = self.out(xc)
         out = nn.Sigmoid()(out)
         return out, x
+
+
+
+# Groq Model for ONNX Export
+class GroqGINConvNet(GINConvNet):
+    def __init__(self, n_output=1, num_features_xd=78, num_features_xt=25,
+                 n_filters=32, embed_dim=128, output_dim=128, dropout=0.2):
+        super(GroqGINConvNet, self).__init__()
+        
+    def forward(self, x, edge_index, batch, target):
+        super(GroqGINConvNet, self).forward(
+            DataBatch(
+                x=x, 
+                edge_index=edge_index,
+                batch=batch,
+                target=target
+            )
+        )
