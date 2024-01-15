@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch.nn import Sequential, Linear, ReLU
 from torch_geometric.nn import GINConv, global_add_pool
 from torch_geometric.nn import global_mean_pool as gap, global_max_pool as gmp
-
+import torch_geometric 
 # GINConv model
 class GINConvNet(torch.nn.Module):
     def __init__(self, n_output=1, num_features_xd=78, num_features_xt=25,
@@ -136,8 +136,10 @@ class GroqGINConvNet(GINConvNet):
         super(GroqGINConvNet, self).__init__()
         
     def forward(self, x, edge_index, batch, target):
+        # parent class seesm to take input data of type
+        # <class 'torch_geometric.data.batch.DataBatch'>
         super(GroqGINConvNet, self).forward(
-            DataBatch(
+            torch_geometric.data.batch.DataBatch(
                 x=x, 
                 edge_index=edge_index,
                 batch=batch,
