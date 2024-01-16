@@ -28,11 +28,11 @@ patience = 20
 ckpt_save_interval = 5
 model_arch = "GINConvNet"
 log_interval = 20
-cuda_name = "cuda:7"
+cuda_name = "cuda:1"
 
 [Infer]
 test_ml_data_dir = "./ml_data/GDSCv1-CCLE/split_0"
 model_dir = "./out_models/GDSCv1/split_0"
 infer_outdir = "./out_infer/GDSCv1-CCLE/split_0"
 test_batch = 256
-cuda_name = "cuda:7"
+cuda_name = "cuda:1"

@@ -138,7 +138,7 @@ class GroqGINConvNet(GINConvNet):
     def forward(self, x, edge_index, batch, target):
         # parent class seesm to take input data of type
         # <class 'torch_geometric.data.batch.DataBatch'>
-        super(GroqGINConvNet, self).forward(
+        return super(GroqGINConvNet, self).forward(
             torch_geometric.data.batch.DataBatch(
                 x=x, 
                 edge_index=edge_index,

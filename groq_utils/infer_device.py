@@ -1,22 +1,36 @@
-# TODO saving an ONNX model should be minimal overhead 
-# probably makes sense to add this to the checkpointing system
+""" Inference with GraphDRP for drug response prediction.
+
+Required outputs
+----------------
+All the outputs from this infer script are saved in params["infer_outdir"].
+
+1. Predictions on test data.
+   Raw model predictions calcualted using the trained model on test data. The
+   predictions are saved in test_y_data_predicted.csv
+
+2. Prediction performance scores on test data.
+   The performance scores are calculated using the raw model predictions and
+   the true values for performance metrics specified in the metrics_list. The
+   scores are saved as json in test_scores.json
+"""
 
 import sys
 import os
-from pathlib import Path, PurePath
+from pathlib import Path
 from typing import Dict
 
-import torch
 import pandas as pd
 
 # [Req] IMPROVE/CANDLE imports
 from improve import framework as frm
-from utils import ModelRunner
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 # [Req] Imports from preprocess and train scripts
 from graphdrp_preprocess_improve import preprocess_params
-from graphdrp_train_improve import metrics_list, train_params
+from graphdrp_train_improve import train_params
+
+from utils import ModelRunner
 
 filepath = Path(__file__).resolve().parent.parent # [Req]
 
@@ -60,24 +74,8 @@ def main(args):
         required=None,
     )
     model_runner = ModelRunner(params)
-
-    dummy_batch = next(iter(model_runner.data_loader)).to(model_runner.device)
-    #print(dummy_batch)
-    dummy_data = dummy_batch.get_example(0)
-    input_names=['x', 'edge_index', 'batch', 'target']
-    dummy_inputs=(dummy_data.x, dummy_data.edge_index, dummy_data.batch, dummy_data.target)
-    
-    output_names=['out','x']
-    save_file = PurePath.joinpath(Path.cwd(), 'out', 'infer.onnx')
-    torch.onnx.export(
-        model_runner.model, 
-        dummy_inputs, 
-        save_file, 
-        input_names=input_names,
-        output_names=output_names,
-        opset_version=17,
-    )
-    
+    test_scores = model_runner.run_predictions()
+    print("\nFinished model inference.")
 
 
 # [Req]

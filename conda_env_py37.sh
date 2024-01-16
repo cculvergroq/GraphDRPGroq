@@ -3,14 +3,21 @@
 set -e
 
 # Manually run these commands before running this sciprt
-# conda create -n GraphDRP_py37 python=3.7 pip --yes
-# conda activate GraphDRP_py37
+# conda create -n GraphDRP
+# conda activate GraphDRP
+# conda install pip
 
-conda install pytorch torchvision cudatoolkit=10.2 -c pytorch --yes
-conda install pyg -c pyg -c conda-forge --yes
+# conda install pytorch torchvision cudatoolkit=12.2 -c pytorch --yes 
+# h100 machine
+#pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu121
+
+#conda install pyg -c pyg -c conda-forge --yes
+#pip install torch_geometric
 
 conda install -c conda-forge matplotlib --yes
-conda install -c conda-forge h5py=3.1 --yes
+
+
+conda install -c conda-forge h5py --yes
 
 conda install -c bioconda pubchempy --yes
 conda install -c rdkit rdkit --yes

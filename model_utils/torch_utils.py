@@ -256,7 +256,7 @@ def determine_device(cuda_name_from_params):
             cuda_name = "cuda:0"
         else:
             cuda_name = cuda_name_from_params
-        device = cuda_name
+        device = torch.device(cuda_name)
     else:
         device = "cpu"
 
