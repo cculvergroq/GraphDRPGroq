@@ -1,22 +1,13 @@
-# TODO saving an ONNX model should be minimal overhead 
-# probably makes sense to add this to the checkpointing system
-
-import sys
-import os
-from pathlib import Path, PurePath
-from typing import Dict
-
-import torch
-import pandas as pd
-
+from runner import OnnxRunner
 # [Req] IMPROVE/CANDLE imports
 from improve import framework as frm
-from runner import ModelRunner
-
-
 # [Req] Imports from preprocess and train scripts
 from graphdrp_preprocess_improve import preprocess_params
-from graphdrp_train_improve import metrics_list, train_params
+from graphdrp_train_improve import train_params
+
+import sys
+from pathlib import Path
+from typing import Dict
 
 filepath = Path(__file__).resolve().parent.parent # [Req]
 
@@ -45,9 +36,8 @@ model_infer_params = []
 infer_params = app_infer_params + model_infer_params
 # ---------------------
 
-# [Req]
+
 def main(args):
-    # [Req]
     additional_definitions = preprocess_params + train_params + infer_params
     params = frm.initialize_parameters(
         filepath,
@@ -59,27 +49,10 @@ def main(args):
         # required=req_infer_args,
         required=None,
     )
-    model_runner = ModelRunner(params)
+    runner = OnnxRunner(params)
+    test_scores = runner.run_predictions()
+    print("\nFinished model inference.")
+    print("  test_scores = ", test_scores)
 
-    dummy_batch = next(iter(model_runner.data_loader)).to(model_runner.device)
-    #print(dummy_batch)
-    dummy_data = dummy_batch.get_example(0)
-    input_names=['x', 'edge_index', 'batch', 'target']
-    dummy_inputs=(dummy_data.x, dummy_data.edge_index, dummy_data.batch, dummy_data.target)
-    
-    output_names=['out','x']
-    save_file = PurePath.joinpath(Path.cwd(), 'out', 'infer.onnx')
-    torch.onnx.export(
-        model_runner.model, 
-        dummy_inputs, 
-        save_file, 
-        input_names=input_names,
-        output_names=output_names,
-        opset_version=17,
-    )
-    
-
-
-# [Req]
-if __name__ == "__main__":
+if __name__=="__main__":
     main(sys.argv[1:])

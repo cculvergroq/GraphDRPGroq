@@ -30,7 +30,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 from graphdrp_preprocess_improve import preprocess_params
 from graphdrp_train_improve import train_params
 
-from utils import ModelRunner
+from runner import ModelRunner
 
 filepath = Path(__file__).resolve().parent.parent # [Req]
 
@@ -76,6 +76,7 @@ def main(args):
     model_runner = ModelRunner(params)
     test_scores = model_runner.run_predictions()
     print("\nFinished model inference.")
+    print("  test_scores = ", test_scores)
 
 
 # [Req]
