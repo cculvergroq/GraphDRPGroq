@@ -2,6 +2,7 @@
 # probably makes sense to add this to the checkpointing system
 
 import sys
+import os
 from pathlib import Path, PurePath
 from typing import Dict
 
@@ -18,12 +19,13 @@ from model_utils.torch_utils import (
     load_GraphDRP,
     predicting,
 )
+from model_utils.models.ginconv import GroqGINConvNet
 
 # [Req] Imports from preprocess and train scripts
 from graphdrp_preprocess_improve import preprocess_params
 from graphdrp_train_improve import metrics_list, train_params
 
-filepath = Path(__file__).resolve().parent # [Req]
+filepath = Path(__file__).resolve().parent.parent # [Req]
 
 # ---------------------
 # [Req] Parameter lists
@@ -101,14 +103,29 @@ def load(params):
     modelpath = frm.build_model_path(params, model_dir=params["model_dir"]) # [Req]
     model = load_GraphDRP(params, modelpath, device)
     model.eval()
-    print(type(model))
-    dummy_batch = next(iter(test_loader)).to(device)
-    print(dummy_batch)
-    dummy_data = dummy_batch.get_example(0)
-    print(type(dummy_data))
-    print(dummy_data)
     
-    return model, dummy_batch
+    groqModel = GroqGINConvNet()
+    groqModel.load_state_dict(model.state_dict())
+    print("TrainedModel")
+    print(model.state_dict())
+    print("GroqModel")
+    print(groqModel.state_dict())
+    msd = model.state_dict()
+    gsd = groqModel.state_dict()
+    converted=True
+    for key in msd:
+        if not torch.allclose(msd[key], gsd[key]):
+            print("State dict error at {}".format(key))
+            converted=False
+    if not converted:
+        raise ValueError("State dicts are not the same for the Groq model")
+    dummy_batch = next(iter(test_loader)).to(device)
+    #print(dummy_batch)
+    dummy_data = dummy_batch.get_example(0)
+    #print(type(dummy_data))
+    #print(dummy_data)
+    
+    return groqModel, dummy_batch
 
 # [Req]
 def main(args):
