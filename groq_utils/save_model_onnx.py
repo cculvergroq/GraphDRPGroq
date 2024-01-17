@@ -77,7 +77,7 @@ def main(args):
                 if new_max!=shapeMax[i][j]:
                     shapeMax[i][j]=new_max
                     maxSizeTensors[i]=tensor
-        #print(data.x.size(), data.edge_index.size(), data.batch.size(), data.target.size())
+        print(data.x.size(), data.edge_index.size(), data.batch.size(), data.target.size())
     print(shapeMax)
     print(input_tensors[0].dtype, input_tensors[1].dtype, input_tensors[2].dtype, input_tensors[3].dtype)
 

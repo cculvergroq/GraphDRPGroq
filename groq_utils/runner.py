@@ -210,14 +210,25 @@ class OnnxRunner:
                 # data=data.to(self.device)
                 # output, _ = self.model(data.x, data.edge_index, data.batch, data.target)
                 
-                outputs = ort_session.run(["out", "x"], {
-                    "x.4": data.x.numpy(),
-                    "edge_index": data.edge_index.numpy(),
-                    "batch": data.batch.numpy(), 
-                    "target": data.target.numpy(),
+                # TODO: hardcoded from ONNX save script output...
+                x=torch.zeros((15872,78),dtype=torch.float32)
+                x[:data.x.size(0),:data.x.size(1)]=data.x
+                edge_index=torch.zeros((2,34816),dtype=torch.int64)
+                edge_index[:data.edge_index.size(0),:data.edge_index.size(1)]=data.edge_index
+                batch=torch.zeros((15872),dtype=torch.int64)
+                batch[:data.batch.size(0)]=data.batch
+                target=torch.zeros((256,958),dtype=torch.float32)
+                target[:data.target.size(0), :data.target.size(1)]=data.target
+                
+                outputs = ort_session.run(["out", "xOut"], {
+                    "x": x.numpy(),
+                    "edge_index": edge_index.numpy(),
+                    "batch": batch.numpy(), 
+                    "target": target.numpy(),
                 })
+                print(outputs[0].shape)
                 total_labels = torch.cat((total_labels, data.y.view(-1,1).cpu()), 0)
-                total_preds = torch.cat((total_preds, outputs["out"]), 0)
+                total_preds = torch.cat((total_preds, torch.tensor(outputs[0][:data.target.size(0),:])), 0)
                 
         total_labels=total_labels.numpy().flatten()
         total_preds=total_preds.numpy().flatten()
