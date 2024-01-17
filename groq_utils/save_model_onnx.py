@@ -60,14 +60,43 @@ def main(args):
         required=None,
     )
     model_runner = ModelRunner(params)
+    print(model_runner.model)
+    data0 = next(iter(model_runner.data_loader))
+    input_tensors = [data0.x, data0.edge_index, data0.batch, data0.target]
+    maxSizeTensors = input_tensors
+    # TODO: this is temporary - NEED to understand model to understand the true max that could be passed
+    # in - this only works for THIS inference input set...
+    shapeMax=[[0 for i in range(d.dim())] for d in input_tensors]
+    for data in model_runner.data_loader:
+        tensors=[data.x, data.edge_index, data.batch, data.target]
+        for i,tensor in enumerate(tensors):
+            for j in range(tensor.dim()):
+                #print(shapeMax[i][j], tensor.size(j))
+                # note this wont work if multiple dimensions of the tensor are changing size..
+                new_max=max(shapeMax[i][j],tensor.size(j))
+                if new_max!=shapeMax[i][j]:
+                    shapeMax[i][j]=new_max
+                    maxSizeTensors[i]=tensor
+        #print(data.x.size(), data.edge_index.size(), data.batch.size(), data.target.size())
+    print(shapeMax)
+    print(input_tensors[0].dtype, input_tensors[1].dtype, input_tensors[2].dtype, input_tensors[3].dtype)
 
-    dummy_batch = next(iter(model_runner.data_loader)).to(model_runner.device)
-    #print(dummy_batch)
-    dummy_data = dummy_batch.get_example(0)
     input_names=['x', 'edge_index', 'batch', 'target']
-    dummy_inputs=(dummy_data.x, dummy_data.edge_index, dummy_data.batch, dummy_data.target)
+    # dummy_inputs=(
+    #     torch.rand(shapeMax[0], dtype=torch.float32).to(model_runner.device),
+    #     torch.randint(low=1,high=100,size=shapeMax[1], dtype=torch.int64).to(model_runner.device),
+    #     torch.randint(low=1,high=100,size=shapeMax[2], dtype=torch.int64).to(model_runner.device),
+    #     torch.rand(size=shapeMax[3], dtype=torch.float32).to(model_runner.device),
+    # )
+    # print(dummy_inputs[0].size(), dummy_inputs[1].size(), dummy_inputs[2].size(), dummy_inputs[3].size())
     
-    output_names=['out','x']
+    # this works fine...
+    # dummy_inputs=tuple(input.to(model_runner.device) for input in input_tensors)
+    # print(dummy_inputs[0].size(), dummy_inputs[1].size(), dummy_inputs[2].size(), dummy_inputs[3].size())
+    
+    dummy_inputs=tuple(tensor.to(model_runner.device) for tensor in maxSizeTensors)
+    
+    output_names=['out','xOut']
     save_file = PurePath.joinpath(Path.cwd(), 'out', 'infer.onnx')
     torch.onnx.export(
         model_runner.model, 
