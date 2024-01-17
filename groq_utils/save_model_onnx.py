@@ -60,6 +60,7 @@ def main(args):
         required=None,
     )
     model_runner = ModelRunner(params)
+    model_runner.model.eval()
     print(model_runner.model)
     data0 = next(iter(model_runner.data_loader))
     input_tensors = [data0.x, data0.edge_index, data0.batch, data0.target]
@@ -67,7 +68,10 @@ def main(args):
     # TODO: this is temporary - NEED to understand model to understand the true max that could be passed
     # in - this only works for THIS inference input set...
     shapeMax=[[0 for i in range(d.dim())] for d in input_tensors]
+    print(type(model_runner.data_loader))
     for data in model_runner.data_loader:
+        #print("data.batch=",data.batch)
+        #print(type(data))
         tensors=[data.x, data.edge_index, data.batch, data.target]
         for i,tensor in enumerate(tensors):
             for j in range(tensor.dim()):
@@ -77,7 +81,7 @@ def main(args):
                 if new_max!=shapeMax[i][j]:
                     shapeMax[i][j]=new_max
                     maxSizeTensors[i]=tensor
-        print(data.x.size(), data.edge_index.size(), data.batch.size(), data.target.size())
+        #print(data.x.size(), data.edge_index.size(), data.batch.size(), data.target.size())
     print(shapeMax)
     print(input_tensors[0].dtype, input_tensors[1].dtype, input_tensors[2].dtype, input_tensors[3].dtype)
 

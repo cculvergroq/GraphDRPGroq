@@ -117,6 +117,7 @@ class ModelRunner:
         print("Make prediction for {} samples...".format(len(self.data_loader.dataset)))
         with torch.no_grad():
             for data in self.data_loader:
+                #print("data.batch=", data.batch)
                 data=data.to(self.device)
                 output, _ = self.model(data.x, data.edge_index, data.batch, data.target)
                 total_labels = torch.cat((total_labels, data.y.view(-1,1).cpu()), 0)
@@ -124,6 +125,7 @@ class ModelRunner:
                 
         total_labels=total_labels.numpy().flatten()
         total_preds=total_preds.numpy().flatten()
+        print(total_preds)
         # ------------------------------------------------------
         # [Req] Save raw predictions in dataframe
         # ------------------------------------------------------
@@ -207,17 +209,21 @@ class OnnxRunner:
         print("Make prediction for {} samples...".format(len(self.data_loader.dataset)))
         with torch.no_grad():
             for data in self.data_loader:
+            # for batch in self.data_loader:
+            #    for data in batch:
+            #       do stuff
+                
                 # data=data.to(self.device)
                 # output, _ = self.model(data.x, data.edge_index, data.batch, data.target)
                 
                 # TODO: hardcoded from ONNX save script output...
-                x=torch.zeros((15872,78),dtype=torch.float32)
+                x=torch.zeros((124,78),dtype=torch.float32)
                 x[:data.x.size(0),:data.x.size(1)]=data.x
-                edge_index=torch.zeros((2,34816),dtype=torch.int64)
+                edge_index=torch.zeros((2,272),dtype=torch.int64)
                 edge_index[:data.edge_index.size(0),:data.edge_index.size(1)]=data.edge_index
-                batch=torch.zeros((15872),dtype=torch.int64)
+                batch=torch.zeros((124),dtype=torch.int64)
                 batch[:data.batch.size(0)]=data.batch
-                target=torch.zeros((256,958),dtype=torch.float32)
+                target=torch.zeros((2,958),dtype=torch.float32)
                 target[:data.target.size(0), :data.target.size(1)]=data.target
                 
                 outputs = ort_session.run(["out", "xOut"], {
@@ -226,12 +232,11 @@ class OnnxRunner:
                     "batch": batch.numpy(), 
                     "target": target.numpy(),
                 })
-                print(outputs[0].shape)
                 total_labels = torch.cat((total_labels, data.y.view(-1,1).cpu()), 0)
-                total_preds = torch.cat((total_preds, torch.tensor(outputs[0][:data.target.size(0),:])), 0)
-                
+                total_preds = torch.cat((total_preds, torch.tensor(outputs[0][:data.target.size(0)])), 0)
         total_labels=total_labels.numpy().flatten()
         total_preds=total_preds.numpy().flatten()
+        print(total_preds)
         # ------------------------------------------------------
         # [Req] Save raw predictions in dataframe
         # ------------------------------------------------------

@@ -115,7 +115,6 @@ class GINConvNet(torch.nn.Module):
         # xt = dense_layer(xt)
         
         # concat
-        print("trying to cat with sizes", x.size(), xt.size())
         xc = torch.cat((x, xt), 1)
         # add some dense layers
         xc = self.fc1(xc)
