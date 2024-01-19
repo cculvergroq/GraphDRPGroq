@@ -117,11 +117,58 @@ class ModelRunner:
         print("Make prediction for {} samples...".format(len(self.data_loader.dataset)))
         with torch.no_grad():
             for data in self.data_loader:
+                print("type(data)=",type(data))
+                print(len(data.to_data_list()))
+                print(type(data.to_data_list()[0]))
                 #print("data.batch=", data.batch)
-                data=data.to(self.device)
-                output, _ = self.model(data.x, data.edge_index, data.batch, data.target)
+                torch.set_printoptions(profile="full")
+                
+                # TODO: hardcoded from ONNX save script output...
+                x=torch.zeros((62,78),dtype=torch.float32)
+                x[:data.x.size(0),:data.x.size(1)]=data.x
+                maxEdgeInData=torch.max(data.edge_index)+1
+                maxEdgePossible=x.size(0)
+                
+                # no self connections if original graph has self connections
+                
+                edge_index=torch.randint(low=maxEdgeInData, high=maxEdgePossible, size=(2,136), dtype=torch.int64)
+                edge_index=torch.zeros(size=(2,136), dtype=torch.int64)
+                edge_index[:data.edge_index.size(0),:data.edge_index.size(1)]=data.edge_index
+                #batch=torch.zeros((62),dtype=torch.int64)
+                #batch[:data.batch.size(0)]=data.batch
+                #batch=torch.ones(1,dtype=torch.int64)
+                batch=torch.zeros(1,dtype=torch.int64)  
+                target=torch.zeros((2,958),dtype=torch.float32)
+                target[:data.target.size(0), :data.target.size(1)]=data.target
+                print("x=",x)
+                print("datalistx=",data.to_data_list()[0].x)
+                print("edge=",edge_index)
+                print("datalistedge=",data.to_data_list()[0].edge_index)
+                print("batch=",batch)
+                print("databatch=",data.to_data_list()[0].batch)
+                print("target=",target)
+                print("datatarget=",data.to_data_list()[0].target)
+                
+                # the below produce [0.9149288, 0.9257006] for batch 2 
+                # and correctly does [0.9149288] for batch 1...               
+                # x=data.x
+                # edge_index=data.edge_index
+                # batch=data.batch
+                # target=data.target
+                
+                x=x.to(self.device)
+                edge_index=edge_index.to(self.device)
+                batch=batch.to(self.device)
+                target=target.to(self.device)
+
+                output, _ = self.model(x, edge_index, batch, target)
+
+                #data=data.to(self.device)
+                #output, _ = self.model(data.x, data.edge_index, data.batch, data.target)
+                print([output, _])
                 total_labels = torch.cat((total_labels, data.y.view(-1,1).cpu()), 0)
                 total_preds = torch.cat((total_preds, output.cpu()), 0)
+                break
                 
         total_labels=total_labels.numpy().flatten()
         total_preds=total_preds.numpy().flatten()
@@ -225,15 +272,21 @@ class OnnxRunner:
                 batch[:data.batch.size(0)]=data.batch
                 target=torch.zeros((2,958),dtype=torch.float32)
                 target[:data.target.size(0), :data.target.size(1)]=data.target
-                
+                torch.set_printoptions(profile="full")
+                print("x=",x)
+                print("edge=",edge_index)
+                print("batch=",batch)
+                print("target=",target)
                 outputs = ort_session.run(["out", "xOut"], {
                     "x": x.numpy(),
                     "edge_index": edge_index.numpy(),
                     "batch": batch.numpy(), 
                     "target": target.numpy(),
                 })
+                print(outputs)
                 total_labels = torch.cat((total_labels, data.y.view(-1,1).cpu()), 0)
                 total_preds = torch.cat((total_preds, torch.tensor(outputs[0][:data.target.size(0)])), 0)
+                break
         total_labels=total_labels.numpy().flatten()
         total_preds=total_preds.numpy().flatten()
         print(total_preds)

@@ -134,6 +134,7 @@ def build_GraphDRP_dataloader(
     :return: PyTorch data loader constructed.
     :rtype: DataLoader
     """
+    print("building graphDRP dataloader with batch_size=", batch_size)
     if data_fname.endswith(".pt"):
         data_fname = data_fname[:-3] # TestbedDataset() appends this string with ".pt"
     dataset = TestbedDataset(root=data_dir, dataset=data_fname) # TestbedDataset() requires strings

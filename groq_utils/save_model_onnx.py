@@ -68,8 +68,14 @@ def main(args):
     # TODO: this is temporary - NEED to understand model to understand the true max that could be passed
     # in - this only works for THIS inference input set...
     shapeMax=[[0 for i in range(d.dim())] for d in input_tensors]
+    maxEdgeIdx=0
     print(type(model_runner.data_loader))
     for data in model_runner.data_loader:
+        # get max edge_index value
+        for edges in data.edge_index:
+            for edge in edges:
+                if edge>maxEdgeIdx:
+                    maxEdgeIdx=edge
         #print("data.batch=",data.batch)
         #print(type(data))
         tensors=[data.x, data.edge_index, data.batch, data.target]
@@ -84,7 +90,7 @@ def main(args):
         #print(data.x.size(), data.edge_index.size(), data.batch.size(), data.target.size())
     print(shapeMax)
     print(input_tensors[0].dtype, input_tensors[1].dtype, input_tensors[2].dtype, input_tensors[3].dtype)
-
+    print("max edge index={}".format(maxEdgeIdx))
     input_names=['x', 'edge_index', 'batch', 'target']
     # dummy_inputs=(
     #     torch.rand(shapeMax[0], dtype=torch.float32).to(model_runner.device),
