@@ -37,3 +37,4 @@ infer_outdir = "./out_infer/GDSCv1-CCLE/split_0"
 test_batch = 1
 cuda_name = "cuda:1"
 onnx_name = "./out/infer.onnx"
+iop_name = "./out/infer.iop"
