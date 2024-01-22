@@ -124,27 +124,28 @@ class ModelRunner:
                 torch.set_printoptions(profile="full")
                 
                 # TODO: hardcoded from ONNX save script output...
+                # BATCH=1 : x=[62,78], edge=[2,136], batch=[62], target=[1,958]
                 x=data.x
-                x=torch.zeros((100,78),dtype=torch.float32)
+                x=torch.zeros((70,78),dtype=torch.float32)
                 x[:data.x.size(0),:data.x.size(1)]=data.x
-                #
-                # maxVertex=torch.max(data.edge_index)+1
-                # maxVertexPossible=x.size(0)
-                # no self connections if original graph has self connections
-                # if maxVertex<maxVertexPossible:
-                #     edge_index=torch.randint(low=maxVertex, high=maxVertexPossible, size=(2,136), dtype=torch.int64)
-                #     edge_index[:data.edge_index.size(0),:data.edge_index.size(1)]=data.edge_index
-                # else:
-                #     edge_index=data.edge_index
-                #     print("no edge padding, edge_index.shape={}, x.shape={}".format(edge_index.shape, data.x.shape))
-                #
+                
+                maxVertex=torch.max(data.edge_index)+1
+                maxVertexPossible=x.size(0)
+                ###no self connections if original graph has self connections
+                if maxVertex<maxVertexPossible:
+                    edge_index=torch.randint(low=maxVertex, high=maxVertexPossible, size=(2,150), dtype=torch.int64)
+                    edge_index[:data.edge_index.size(0),:data.edge_index.size(1)]=data.edge_index
+                else:
+                    edge_index=data.edge_index
+                    print("no edge padding, edge_index.shape={}, x.shape={}".format(edge_index.shape, data.x.shape))
+                
                 edge_index=data.edge_index
 
-                #batch=torch.zeros((62),dtype=torch.int64)
-                #batch[:data.batch.size(0)]=data.batch
+                batch=torch.ones((70),dtype=torch.int64)
+                batch[:data.batch.size(0)]=data.batch
                 #batch=torch.ones(1,dtype=torch.int64)
-                batch=torch.zeros(1,dtype=torch.int64)  
-                target=torch.zeros((1,958),dtype=torch.float32)
+                #batch=torch.zeros(1,dtype=torch.int64)  
+                target=torch.zeros((2,958),dtype=torch.float32)
                 target[:data.target.size(0), :data.target.size(1)]=data.target
                 #print("x=",x)
                 #print("datalistx=",data.to_data_list()[0].x)
@@ -175,8 +176,9 @@ class ModelRunner:
                 #output, _ = self.model(data.x, data.edge_index, data.batch, data.target)
                 #print([output, _])
                 total_labels = torch.cat((total_labels, data.y.view(-1,1).cpu()), 0)
-                total_preds = torch.cat((total_preds, output.cpu()), 0)
+                total_preds = torch.cat((total_preds, outputPad.cpu()[0]), 0)
                 #break
+                #expected mse=0.0102783227
                 
         total_labels=total_labels.numpy().flatten()
         total_preds=total_preds.numpy().flatten()
