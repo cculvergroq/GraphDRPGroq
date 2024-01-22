@@ -130,16 +130,16 @@ class ModelRunner:
                 x[:data.x.size(0),:data.x.size(1)]=data.x
                 
                 maxVertex=torch.max(data.edge_index)+1
-                maxVertexPossible=x.size(0)
+                maxVertexPossible=70
                 ###no self connections if original graph has self connections
                 if maxVertex<maxVertexPossible:
-                    edge_index=torch.randint(low=maxVertex, high=maxVertexPossible, size=(2,150), dtype=torch.int64)
+                    edge_index=torch.randint(low=64, high=70, size=(2,150), dtype=torch.int64)
                     edge_index[:data.edge_index.size(0),:data.edge_index.size(1)]=data.edge_index
                 else:
                     edge_index=data.edge_index
                     print("no edge padding, edge_index.shape={}, x.shape={}".format(edge_index.shape, data.x.shape))
                 
-                edge_index=data.edge_index
+                #edge_index=data.edge_index
 
                 batch=torch.ones((70),dtype=torch.int64)
                 batch[:data.batch.size(0)]=data.batch
@@ -171,7 +171,11 @@ class ModelRunner:
                 data=data.to(self.device)
                 output, _ = self.model(data.x, data.edge_index, data.batch, data.target)
                 
-                print("Padded = {}, Normal = {}".format(outputPad.cpu(), output.cpu()))
+                #print("Padded = {}, Normal = {}".format(outputPad.cpu(), output.cpu()))
+                answerPad=outputPad.cpu()[0]
+                answer=output.cpu()[0]
+                if not torch.allclose(answerPad,answer):
+                    print("padded={}, normal={}".format(outputPad.cpu(), output.cpu()))
                 #data=data.to(self.device)
                 #output, _ = self.model(data.x, data.edge_index, data.batch, data.target)
                 #print([output, _])
@@ -179,6 +183,7 @@ class ModelRunner:
                 total_preds = torch.cat((total_preds, outputPad.cpu()[0]), 0)
                 #break
                 #expected mse=0.0102783227
+                #wrong predictions around like 4580
                 
         total_labels=total_labels.numpy().flatten()
         total_preds=total_preds.numpy().flatten()
@@ -274,29 +279,39 @@ class OnnxRunner:
                 # output, _ = self.model(data.x, data.edge_index, data.batch, data.target)
                 
                 # TODO: hardcoded from ONNX save script output...
-                x=torch.zeros((124,78),dtype=torch.float32)
+                x=data.x
+                x=torch.zeros((70,78),dtype=torch.float32)
                 x[:data.x.size(0),:data.x.size(1)]=data.x
-                edge_index=torch.zeros((2,272),dtype=torch.int64)
-                edge_index[:data.edge_index.size(0),:data.edge_index.size(1)]=data.edge_index
-                batch=torch.zeros((124),dtype=torch.int64)
+                
+                maxVertex=torch.max(data.edge_index)+1
+                maxVertexPossible=70
+                ###no self connections if original graph has self connections
+                if maxVertex<maxVertexPossible:
+                    edge_index=torch.randint(low=64, high=70, size=(2,150), dtype=torch.int64)
+                    edge_index[:data.edge_index.size(0),:data.edge_index.size(1)]=data.edge_index
+                else:
+                    edge_index=data.edge_index
+                    print("no edge padding, edge_index.shape={}, x.shape={}".format(edge_index.shape, data.x.shape))
+                
+                #edge_index=data.edge_index
+
+                batch=torch.ones((70),dtype=torch.int64)
                 batch[:data.batch.size(0)]=data.batch
+                #batch=torch.ones(1,dtype=torch.int64)
+                #batch=torch.zeros(1,dtype=torch.int64)  
                 target=torch.zeros((2,958),dtype=torch.float32)
                 target[:data.target.size(0), :data.target.size(1)]=data.target
-                torch.set_printoptions(profile="full")
-                print("x=",x)
-                print("edge=",edge_index)
-                print("batch=",batch)
-                print("target=",target)
+
                 outputs = ort_session.run(["out", "xOut"], {
                     "x": x.numpy(),
                     "edge_index": edge_index.numpy(),
                     "batch": batch.numpy(), 
                     "target": target.numpy(),
                 })
-                print(outputs)
+                print(outputs[0][0])
                 total_labels = torch.cat((total_labels, data.y.view(-1,1).cpu()), 0)
-                total_preds = torch.cat((total_preds, torch.tensor(outputs[0][:data.target.size(0)])), 0)
-                break
+                total_preds = torch.cat((total_preds, torch.tensor(outputs[0][0])), 0)
+                
         total_labels=total_labels.numpy().flatten()
         total_preds=total_preds.numpy().flatten()
         print(total_preds)

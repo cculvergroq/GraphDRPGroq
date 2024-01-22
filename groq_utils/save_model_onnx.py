@@ -103,11 +103,16 @@ def main(args):
     # this works fine...
     # dummy_inputs=tuple(input.to(model_runner.device) for input in input_tensors)
     # print(dummy_inputs[0].size(), dummy_inputs[1].size(), dummy_inputs[2].size(), dummy_inputs[3].size())
-    maxSizeTensors=[torch.zeros((70,78), dtype=torch.float32),
+    paddedTensors=[torch.zeros((70,78), dtype=torch.float32),
                     torch.zeros((2,150), dtype=torch.int64),
-                    torch.zeros((70), dtype=torch.int64),
+                    torch.ones((70), dtype=torch.int64),
                     torch.zeros((2,958), dtype=torch.float32)]
-    dummy_inputs=tuple(tensor.to(model_runner.device) for tensor in maxSizeTensors)
+    paddedTensors[0][:maxSizeTensors[0].size(0),:maxSizeTensors[0].size(1)]=maxSizeTensors[0]
+    paddedTensors[1][:maxSizeTensors[1].size(0),:maxSizeTensors[1].size(1)]=maxSizeTensors[1]
+    paddedTensors[2][:maxSizeTensors[2].size(0)]=maxSizeTensors[2]
+    paddedTensors[3][:maxSizeTensors[3].size(0),:maxSizeTensors[3].size(1)]=maxSizeTensors[3]
+    
+    dummy_inputs=tuple(tensor.to(model_runner.device) for tensor in paddedTensors)
     
     output_names=['out','xOut']
     save_file = PurePath.joinpath(Path.cwd(), 'out', 'infer.onnx')
