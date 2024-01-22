@@ -103,7 +103,10 @@ def main(args):
     # this works fine...
     # dummy_inputs=tuple(input.to(model_runner.device) for input in input_tensors)
     # print(dummy_inputs[0].size(), dummy_inputs[1].size(), dummy_inputs[2].size(), dummy_inputs[3].size())
-    
+    maxSizeTensors=[torch.zeros((70,78), dtype=torch.float32),
+                    torch.zeros((2,150), dtype=torch.int64),
+                    torch.zeros((70), dtype=torch.int64),
+                    torch.zeros((2,958), dtype=torch.float32)]
     dummy_inputs=tuple(tensor.to(model_runner.device) for tensor in maxSizeTensors)
     
     output_names=['out','xOut']
