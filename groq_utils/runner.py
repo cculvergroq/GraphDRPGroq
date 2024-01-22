@@ -124,19 +124,21 @@ class ModelRunner:
                 torch.set_printoptions(profile="full")
                 
                 # TODO: hardcoded from ONNX save script output...
-                x=torch.zeros((62,78),dtype=torch.float32)
+                x=data.x
+                x=torch.zeros((100,78),dtype=torch.float32)
                 x[:data.x.size(0),:data.x.size(1)]=data.x
-                maxVertex=torch.max(data.edge_index)+1
-                maxVertexPossible=x.size(0)
-                
+                #
+                # maxVertex=torch.max(data.edge_index)+1
+                # maxVertexPossible=x.size(0)
                 # no self connections if original graph has self connections
-                if maxVertex<maxVertexPossible:
-                    edge_index=torch.randint(low=maxVertex, high=maxVertexPossible, size=(2,136), dtype=torch.int64)
-                    edge_index[:data.edge_index.size(0),:data.edge_index.size(1)]=data.edge_index
-                else:
-                    edge_index=data.edge_index
-                    print("no edge padding, edge_index.shape={}, x.shape={}".format(edge_index.shape, data.x.shape))
-                # edge_index=torch.zeros(size=(2,136), dtype=torch.int64)
+                # if maxVertex<maxVertexPossible:
+                #     edge_index=torch.randint(low=maxVertex, high=maxVertexPossible, size=(2,136), dtype=torch.int64)
+                #     edge_index[:data.edge_index.size(0),:data.edge_index.size(1)]=data.edge_index
+                # else:
+                #     edge_index=data.edge_index
+                #     print("no edge padding, edge_index.shape={}, x.shape={}".format(edge_index.shape, data.x.shape))
+                #
+                edge_index=data.edge_index
 
                 #batch=torch.zeros((62),dtype=torch.int64)
                 #batch[:data.batch.size(0)]=data.batch
@@ -164,10 +166,11 @@ class ModelRunner:
                 edge_index=edge_index.to(self.device)
                 batch=batch.to(self.device)
                 target=target.to(self.device)
-                output2, _ = self.model(x, edge_index, batch, target)
+                outputPad, _ = self.model(x, edge_index, batch, target)
                 data=data.to(self.device)
                 output, _ = self.model(data.x, data.edge_index, data.batch, data.target)
-                print("Padded = {}, Normal = {}".format(output2.cpu(), output.cpu()))
+                
+                print("Padded = {}, Normal = {}".format(outputPad.cpu(), output.cpu()))
                 #data=data.to(self.device)
                 #output, _ = self.model(data.x, data.edge_index, data.batch, data.target)
                 #print([output, _])
