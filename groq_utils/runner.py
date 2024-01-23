@@ -267,7 +267,7 @@ class OnnxRunner:
         # Compute predictions
         total_labels=torch.Tensor()
         total_preds=torch.Tensor()
-        ort_session = ort.InferenceSession(self.params['onnx_name'])
+        ort_session = ort.InferenceSession(self.params['onnx_name'], providers=['TensorrtExecutionProvider', 'CUDAExecutionProvider'])
         print("Make prediction for {} samples...".format(len(self.data_loader.dataset)))
         with torch.no_grad():
             for data in self.data_loader:
@@ -280,7 +280,7 @@ class OnnxRunner:
                 
                 # TODO: hardcoded from ONNX save script output...
                 x=data.x
-                x=torch.zeros((70,78),dtype=torch.float32)
+                x=torch.zeros((70,78),dtype=torch.float16)
                 x[:data.x.size(0),:data.x.size(1)]=data.x
                 
                 maxVertex=torch.max(data.edge_index)+1
@@ -299,7 +299,7 @@ class OnnxRunner:
                 batch[:data.batch.size(0)]=data.batch
                 #batch=torch.ones(1,dtype=torch.int64)
                 #batch=torch.zeros(1,dtype=torch.int64)  
-                target=torch.zeros((2,958),dtype=torch.float32)
+                target=torch.zeros((2,958),dtype=torch.float16)
                 target[:data.target.size(0), :data.target.size(1)]=data.target
 
                 outputs = ort_session.run(["out", "xOut"], {
@@ -336,7 +336,7 @@ class OnnxRunner:
         return test_scores
     
 
-from groq.runner import tsp   
+# from groq.runner import tsp   
 
 class GroqRunner:
     def __init__(self, params):
@@ -345,7 +345,9 @@ class GroqRunner:
         self.model=self.load_model()
     
     def load_model(self):
-        return tsp.create_tsp_runner(self.params['iop_name'])
+        raise NotImplementedError("Haven't implemented GroqRunner")
+        return None
+        #return tsp.create_tsp_runner(self.params['iop_name'])
     
 
     def load_infer_data(self):
@@ -404,7 +406,7 @@ class GroqRunner:
                 
                 # TODO: hardcoded from ONNX save script output...
                 x=data.x
-                x=torch.zeros((70,78),dtype=torch.float32)
+                x=torch.zeros((70,78),dtype=torch.float16)
                 x[:data.x.size(0),:data.x.size(1)]=data.x
                 
                 maxVertex=torch.max(data.edge_index)+1
@@ -423,7 +425,7 @@ class GroqRunner:
                 batch[:data.batch.size(0)]=data.batch
                 #batch=torch.ones(1,dtype=torch.int64)
                 #batch=torch.zeros(1,dtype=torch.int64)  
-                target=torch.zeros((2,958),dtype=torch.float32)
+                target=torch.zeros((2,958),dtype=torch.float16)
                 target[:data.target.size(0), :data.target.size(1)]=data.target
 
                 outputs = self.model(
