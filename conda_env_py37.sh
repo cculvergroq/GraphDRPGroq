@@ -9,14 +9,12 @@ set -e
 
 # conda install pytorch torchvision cudatoolkit=12.2 -c pytorch --yes 
 # h100 machine
-#pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu121
+pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu121
 
 #conda install pyg -c pyg -c conda-forge --yes
-#pip install torch_geometric
+pip install torch_geometric
 
 conda install -c conda-forge matplotlib --yes
-
-
 conda install -c conda-forge h5py --yes
 
 conda install -c bioconda pubchempy --yes
