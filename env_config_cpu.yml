@@ -1,0 +1,4 @@
+name: GraphDRP
+channels:
+  - defaults
+prefix: /home/cculver/anaconda3/envs/GraphDRP
