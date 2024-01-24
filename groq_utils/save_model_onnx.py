@@ -59,6 +59,7 @@ def main(args):
         # required=req_infer_args,
         required=None,
     )
+    params['cuda_name']="cpu"
     model_runner = ModelRunner(params)
     model_runner.model.eval()
     print(model_runner.model)
@@ -69,7 +70,6 @@ def main(args):
     # in - this only works for THIS inference input set...
     shapeMax=[[0 for i in range(d.dim())] for d in input_tensors]
     maxEdgeIdx=0
-    print(type(model_runner.data_loader))
     for data in model_runner.data_loader:
         # get max edge_index value
         for edges in data.edge_index:
@@ -104,7 +104,7 @@ def main(args):
     # dummy_inputs=tuple(input.to(model_runner.device) for input in input_tensors)
     # print(dummy_inputs[0].size(), dummy_inputs[1].size(), dummy_inputs[2].size(), dummy_inputs[3].size())
     paddedTensors=[torch.zeros((70,78), dtype=torch.float32),
-                    torch.zeros((2,150), dtype=torch.int64),
+                    torch.randint(low=64,high=70,size=(2,150), dtype=torch.int64),
                     torch.ones((70), dtype=torch.int64),
                     torch.zeros((2,958), dtype=torch.float32)]
     paddedTensors[0][:maxSizeTensors[0].size(0),:maxSizeTensors[0].size(1)]=maxSizeTensors[0]
@@ -112,17 +112,18 @@ def main(args):
     paddedTensors[2][:maxSizeTensors[2].size(0)]=maxSizeTensors[2]
     paddedTensors[3][:maxSizeTensors[3].size(0),:maxSizeTensors[3].size(1)]=maxSizeTensors[3]
     
-    dummy_inputs=tuple(tensor.to(model_runner.device) for tensor in paddedTensors)
+    dummy_inputs=tuple(tensor for tensor in paddedTensors)
     
     output_names=['out','xOut']
     save_file = PurePath.joinpath(Path.cwd(), 'out', 'infer.onnx')
     torch.onnx.export(
         model_runner.model, 
         dummy_inputs, 
-        save_file, 
+        str(save_file), 
+        export_params=True,
         input_names=input_names,
         output_names=output_names,
-        opset_version=17,
+        opset_version=15,
     )
     
 
