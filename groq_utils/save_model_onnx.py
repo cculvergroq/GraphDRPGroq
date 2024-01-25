@@ -59,7 +59,6 @@ def main(args):
         # required=req_infer_args,
         required=None,
     )
-    params['cuda_name']="cpu"
     model_runner = ModelRunner(params)
     model_runner.model.eval()
     print(model_runner.model)
@@ -112,7 +111,7 @@ def main(args):
     paddedTensors[2][:maxSizeTensors[2].size(0)]=maxSizeTensors[2]
     paddedTensors[3][:maxSizeTensors[3].size(0),:maxSizeTensors[3].size(1)]=maxSizeTensors[3]
     
-    dummy_inputs=tuple(tensor for tensor in paddedTensors)
+    dummy_inputs=tuple(tensor.to(model_runner.device) for tensor in paddedTensors)
     
     output_names=['out','xOut']
     save_file = PurePath.joinpath(Path.cwd(), 'out', 'infer.onnx')
@@ -123,7 +122,7 @@ def main(args):
         export_params=True,
         input_names=input_names,
         output_names=output_names,
-        opset_version=15,
+        opset_version=17,
     )
     
 

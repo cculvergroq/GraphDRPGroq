@@ -15,7 +15,6 @@ from model_utils.torch_utils import (
     build_GraphDRP_dataloader,
     determine_device,
     load_GraphDRP,
-    predicting,
 )
 from model_utils.models.ginconv import GroqGINConvNet
 from graphdrp_train_improve import metrics_list
@@ -283,6 +282,59 @@ class GroqRunner:
                 print(outputs[0][0])
                 total_labels = torch.cat((total_labels, data.y.view(-1,1).cpu()), 0)
                 total_preds = torch.cat((total_preds, torch.tensor(outputs[0][0])), 0)
+                
+        total_labels=total_labels.numpy().flatten()
+        total_preds=total_preds.numpy().flatten()
+        print(total_preds)
+        # ------------------------------------------------------
+        # [Req] Save raw predictions in dataframe
+        # ------------------------------------------------------
+        frm.store_predictions_df(
+            self.params,
+            y_true=total_labels, y_pred=total_preds, stage="test",
+            outdir=self.params["infer_outdir"]
+        )
+
+        # ------------------------------------------------------
+        # [Req] Compute performance scores
+        # ------------------------------------------------------
+        test_scores = frm.compute_performace_scores(
+            self.params,
+            y_true=total_labels, y_pred=total_preds, stage="test",
+            outdir=self.params["infer_outdir"], metrics=metrics_list
+        )
+
+        return test_scores
+    
+    
+class VerifyWrapper(BaseRunner):
+    def run_predictions(self):
+        modelpath = frm.build_model_path(self.params, model_dir=self.params["model_dir"]) # [Req]
+        base_model = load_GraphDRP(self.params, modelpath, self.device)
+        base_model.eval()
+        
+        total_labels=torch.Tensor()
+        total_preds=torch.Tensor()
+
+        print("Make prediction for {} samples...".format(len(self.data_loader.dataset)))
+        with torch.no_grad():
+            for i,data in enumerate(self.data_loader):
+                x, edge_index, batch, target = get_padded_data(data)
+
+
+                
+                x=x.to(self.device)
+                edge_index=edge_index.to(self.device)
+                batch=batch.to(self.device)
+                target=target.to(self.device)
+                outputPad, _ = self.model(x, edge_index, batch, target)
+                
+                data.to(self.device)
+                baseOut, _base = base_model(data)
+                
+                print(i,"   ",outputPad.cpu().numpy().flatten(), "   ", baseOut)
+                total_labels = torch.cat((total_labels, data.y.view(-1,1).cpu()), 0)
+                total_preds = torch.cat((total_preds, torch.tensor(outputPad.cpu()[0])), 0)
                 
         total_labels=total_labels.numpy().flatten()
         total_preds=total_preds.numpy().flatten()
