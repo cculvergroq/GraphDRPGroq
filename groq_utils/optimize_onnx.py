@@ -27,7 +27,6 @@ def process_onnx(inpath: str, outpath: str) -> None:
 
 
 onnxfilepath = PurePath.joinpath(Path.cwd(), 'out', 'infer.onnx')
-model = onnx.load(onnxfilepath)
 
 #session_options = ort.SessionOptions()
 #session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_BASIC
@@ -35,7 +34,7 @@ model = onnx.load(onnxfilepath)
 optfilepath = PurePath.joinpath(Path.cwd(), 'out', 'infer_opt.onnx')
 process_onnx(str(onnxfilepath),str(optfilepath))
 
-model_fp16 = float16.convert_float_to_float16_model_path(optfilepath)
+model_fp16 = float16.convert_float_to_float16_model_path(str(optfilepath))
 onnxfp16path = PurePath.joinpath(Path.cwd(), 'out', 'infer_opt_fp16.onnx')
 onnx.save(model_fp16, str(onnxfp16path))
 
