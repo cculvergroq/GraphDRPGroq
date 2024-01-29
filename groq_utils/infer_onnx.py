@@ -41,18 +41,12 @@ def main(args):
     additional_definitions = preprocess_params + train_params + infer_params
     params = frm.initialize_parameters(
         filepath,
-        # default_model="graphdrp_default_model.txt",
-        # default_model="graphdrp_params.txt",
-        # default_model="params_ws.txt",
         default_model="params_cs.txt",
         additional_definitions=additional_definitions,
-        # required=req_infer_args,
         required=None,
     )
     runner = OnnxRunner(params)
     test_scores = runner.run_predictions()
-    print("\nFinished model inference.")
-    print("  test_scores = ", test_scores)
 
 if __name__=="__main__":
     main(sys.argv[1:])

@@ -75,8 +75,6 @@ def main(args):
     )
     model_runner = VerifyWrapper(params)
     test_scores = model_runner.run_predictions()
-    print("\nFinished model inference.")
-    print("  test_scores = ", test_scores)
 
 
 # [Req]

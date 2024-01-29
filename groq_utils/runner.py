@@ -4,6 +4,7 @@ import onnxruntime as ort
 
 # [Req] IMPROVE/CANDLE imports
 from improve import framework as frm
+import numpy as np
 
 import sys
 import os
@@ -20,6 +21,9 @@ from model_utils.models.ginconv import GroqGINConvNet
 from graphdrp_train_improve import metrics_list
 
 from utils import get_padded_data
+
+# TODO: When padding don't allocate the tensory memory
+# every time, just overwrite the values from the new graph
 
 class BaseRunner:
     def __init__(self, params):
@@ -109,68 +113,6 @@ class BaseRunner:
     def run_predictions(self):
         raise NotImplementedError("Haven't implemented run_predictions for ", type(self))
 
-
-
-class ModelRunner(BaseRunner):
-    def run_predictions(self):
-        """ Run predictions
-        
-        """
-        # Compute predictions
-        self.model.eval()
-        total_labels=torch.Tensor()
-        total_preds=torch.Tensor()
-        print("Make prediction for {} samples...".format(len(self.data_loader.dataset)))
-        with torch.no_grad():
-            for i,data in enumerate(self.data_loader):
-                x, edge_index, batch, target = get_padded_data(data)
-
-                x=x.to(self.device)
-                edge_index=edge_index.to(self.device)
-                batch=batch.to(self.device)
-                target=target.to(self.device)
-                
-                outputPad, _ = self.model(x, edge_index, batch, target)
-                data=data.to(self.device)
-                output, _ = self.model(data.x, data.edge_index, data.batch, data.target)
-                
-                #print("Padded = {}, Normal = {}".format(outputPad.cpu(), output.cpu()))
-                answerPad=outputPad.cpu()[0]
-                answer=output.cpu()[0]
-                print(i,"  ",answer,"  ", answerPad)
-                if not torch.allclose(answerPad,answer):
-                    print("padded={}, normal={}".format(outputPad.cpu(), output.cpu()))
-
-                total_labels = torch.cat((total_labels, data.y.view(-1,1).cpu()), 0)
-                total_preds = torch.cat((total_preds, outputPad.cpu()[0]), 0)
-                #break
-                #expected mse=0.0102783227
-                
-                
-        total_labels=total_labels.numpy().flatten()
-        total_preds=total_preds.numpy().flatten()
-        print(total_preds)
-        # ------------------------------------------------------
-        # [Req] Save raw predictions in dataframe
-        # ------------------------------------------------------
-        frm.store_predictions_df(
-            self.params,
-            y_true=total_labels, y_pred=total_preds, stage="test",
-            outdir=self.params["infer_outdir"]
-        )
-
-        # ------------------------------------------------------
-        # [Req] Compute performance scores
-        # ------------------------------------------------------
-        test_scores = frm.compute_performace_scores(
-            self.params,
-            y_true=total_labels, y_pred=total_preds, stage="test",
-            outdir=self.params["infer_outdir"], metrics=metrics_list
-        )
-
-        return test_scores
-    
-
     
 class OnnxRunner(BaseRunner):
     def run_predictions(self):
@@ -200,13 +142,13 @@ class OnnxRunner(BaseRunner):
                 target=target.to(self.device)
                 outputPad, _ = self.model(x, edge_index, batch, target)
                 
-                print(i,"   ",outputPad.cpu().numpy().flatten(), "   ", outputs[0].flatten())
+                if not np.isclose(outputPad.cpu().numpy()[0], outputs[0][0]):
+                    raise ValueError("ONNX runtime doesn't match torch runtime")
                 total_labels = torch.cat((total_labels, data.y.view(-1,1).cpu()), 0)
                 total_preds = torch.cat((total_preds, torch.tensor(outputs[0][0])), 0)
                 
         total_labels=total_labels.numpy().flatten()
         total_preds=total_preds.numpy().flatten()
-        print(total_preds)
         # ------------------------------------------------------
         # [Req] Save raw predictions in dataframe
         # ------------------------------------------------------
@@ -229,7 +171,6 @@ class OnnxRunner(BaseRunner):
     
 
 # from groq.runner import tsp   
-
 class GroqRunner:
     def run_predictions(self):
         """ Run predictions
@@ -309,19 +250,18 @@ class GroqRunner:
     
 class VerifyWrapper(BaseRunner):
     def run_predictions(self):
-        modelpath = frm.build_model_path(self.params, model_dir=self.params["model_dir"]) # [Req]
+        # Lets rebuild the original GraphDRP calling convention - reminder the class holds GroqGINConvnet
+        modelpath = frm.build_model_path(self.params, model_dir=self.params["model_dir"]) 
         base_model = load_GraphDRP(self.params, modelpath, self.device)
         base_model.eval()
         
         total_labels=torch.Tensor()
         total_preds=torch.Tensor()
 
-        print("Make prediction for {} samples...".format(len(self.data_loader.dataset)))
+        print("Comparing all {} samples for both models".format(len(self.data_loader.dataset)))
         with torch.no_grad():
             for i,data in enumerate(self.data_loader):
                 x, edge_index, batch, target = get_padded_data(data)
-
-
                 
                 x=x.to(self.device)
                 edge_index=edge_index.to(self.device)
@@ -331,14 +271,14 @@ class VerifyWrapper(BaseRunner):
                 
                 data.to(self.device)
                 baseOut, _base = base_model(data)
+                if not torch.isclose(baseOut.cpu()[0], outputPad.cpu()[0][0]):
+                    raise ValueError("Groq model with padding has different prediction")
                 
-                print(i,"   ",outputPad.cpu().numpy().flatten(), "   ", baseOut)
                 total_labels = torch.cat((total_labels, data.y.view(-1,1).cpu()), 0)
                 total_preds = torch.cat((total_preds, torch.tensor(outputPad.cpu()[0])), 0)
-                
+        print("Success, Groq model with padding verified!")
         total_labels=total_labels.numpy().flatten()
         total_preds=total_preds.numpy().flatten()
-        print(total_preds)
         # ------------------------------------------------------
         # [Req] Save raw predictions in dataframe
         # ------------------------------------------------------
