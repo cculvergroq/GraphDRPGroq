@@ -9,6 +9,8 @@ import numpy as np
 import sys
 import os
 
+from timer import Timer
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 # Model-specific imports
@@ -113,8 +115,135 @@ class BaseRunner:
     def run_predictions(self):
         raise NotImplementedError("Haven't implemented run_predictions for ", type(self))
 
-    
+
+class ModelRunner(BaseRunner):
+    def run_predictions(self):
+        total_labels=torch.Tensor()
+        total_preds=torch.Tensor()
+
+        print("Comparing all {} samples for both models".format(len(self.data_loader.dataset)))
+        timer_results = {'to-gpu': [], 'compute': [], 'to-cpu': []}
+        to_gpu_timer = Timer('to-gpu')
+        compute_timer = Timer('compute')
+        to_cpu_timer = Timer('to-cpu')
+        self.model.half()
+        with torch.no_grad():
+            for i,data in enumerate(self.data_loader):
+                x, edge_index, batch, target = get_padded_data(data)
+                x=x.half()
+                target=target.half()
+                
+                # checked that x is on CPU with x.get_device()
+                to_gpu_timer.start()
+                x=x.to(self.device)
+                edge_index=edge_index.to(self.device)
+                batch=batch.to(self.device)
+                target=target.to(self.device)
+                timer_results['to-gpu'].append(to_gpu_timer.stop())
+                
+                compute_timer.start()
+                outputGPU, _ = self.model(x, edge_index, batch, target)
+                timer_results['compute'].append(compute_timer.stop())
+                
+                to_cpu_timer.start()
+                outputCPU = outputGPU.cpu()
+                timer_results['to-cpu'].append(to_cpu_timer.stop())
+                
+                total_labels = torch.cat((total_labels, data.y.view(-1,1).cpu()), 0)
+                total_preds = torch.cat((total_preds, torch.tensor(outputCPU[0])), 0)
+        
+        for key,value in timer_results.items():
+            timer_results[key]=np.array(value)
+        np.savez('out/timer_results_torch.npz', **timer_results)
+        print("All timing saved to out/timer_results_torch.npz")
+        print("Average timings (ns):")
+        for key,value in timer_results.items():
+            print("{}: {:.2f} +/- {:.2f} us".format(key, value.mean(), value.std()))
+        
+        total_labels=total_labels.numpy().flatten()
+        total_preds=total_preds.numpy().flatten()
+        # ------------------------------------------------------
+        # [Req] Save raw predictions in dataframe
+        # ------------------------------------------------------
+        frm.store_predictions_df(
+            self.params,
+            y_true=total_labels, y_pred=total_preds, stage="test",
+            outdir=self.params["infer_outdir"]
+        )
+
+        # ------------------------------------------------------
+        # [Req] Compute performance scores
+        # ------------------------------------------------------
+        test_scores = frm.compute_performace_scores(
+            self.params,
+            y_true=total_labels, y_pred=total_preds, stage="test",
+            outdir=self.params["infer_outdir"], metrics=metrics_list
+        )
+
+        return test_scores
+
+
 class OnnxRunner(BaseRunner):
+    def run_predictions(self):
+        """ Run predictions
+        
+        """
+        # Compute predictions
+        total_labels=torch.Tensor()
+        total_preds=torch.Tensor()
+        ort_session = ort.InferenceSession(self.params['onnx_name'], providers=['TensorrtExecutionProvider'])
+        
+        print("Make prediction for {} samples...".format(len(self.data_loader.dataset)))
+        timer_results = {'end-to-end': []}
+        etoe_timer = Timer('end-to-end')
+        with torch.no_grad():
+            for i,data in enumerate(self.data_loader):
+                x, edge_index, batch, target = get_padded_data(data)
+
+                etoe_timer.start()
+                outputs = ort_session.run(["out", "xOut"], {
+                    "x": x.numpy(),
+                    "edge_index": edge_index.numpy(),
+                    "batch": batch.numpy(), 
+                    "target": target.numpy(),
+                })
+                timer_results['end-to-end'].append(etoe_timer.stop())
+                
+                total_labels = torch.cat((total_labels, data.y.view(-1,1).cpu()), 0)
+                total_preds = torch.cat((total_preds, torch.tensor(outputs[0][0])), 0)
+                
+        for key,value in timer_results.items():
+            timer_results[key]=np.array(value)
+        np.savez('out/timer_results_onnx.npz', **timer_results)
+        print("All timing saved to out/timer_results_onnx.npz")
+        print("Average timings (ns):")
+        for key,value in timer_results.items():
+            print("{}: {:.2f} +/- {:.2f} us".format(key, value.mean(), value.std()))        
+        
+        total_labels=total_labels.numpy().flatten()
+        total_preds=total_preds.numpy().flatten()
+        # ------------------------------------------------------
+        # [Req] Save raw predictions in dataframe
+        # ------------------------------------------------------
+        frm.store_predictions_df(
+            self.params,
+            y_true=total_labels, y_pred=total_preds, stage="test",
+            outdir=self.params["infer_outdir"]
+        )
+
+        # ------------------------------------------------------
+        # [Req] Compute performance scores
+        # ------------------------------------------------------
+        test_scores = frm.compute_performace_scores(
+            self.params,
+            y_true=total_labels, y_pred=total_preds, stage="test",
+            outdir=self.params["infer_outdir"], metrics=metrics_list
+        )
+
+        return test_scores
+
+
+class OnnxVerifier(BaseRunner):
     def run_predictions(self):
         """ Run predictions
         
@@ -143,6 +272,7 @@ class OnnxRunner(BaseRunner):
                 outputPad, _ = self.model(x, edge_index, batch, target)
                 
                 if not np.isclose(outputPad.cpu().numpy()[0], outputs[0][0]):
+                    print(i, outputPad.cpu().numpy().flatten(), "   ", outputs[0].flatten())
                     raise ValueError("ONNX runtime doesn't match torch runtime")
                 total_labels = torch.cat((total_labels, data.y.view(-1,1).cpu()), 0)
                 total_preds = torch.cat((total_preds, torch.tensor(outputs[0][0])), 0)
