@@ -91,7 +91,7 @@ def main(args):
     # batch -> x[0]+2 - set to ones - so that we imitate a batch with the extra nodes/edges 
     # target[0] -> 2 - because there's the graph we care about and our dummy batch
     # target[1] -> no padding - initialized to zero.
-    print(shapeMax)
+    print("Max tensor shapes = ", shapeMax)
     paddedTensors=[torch.zeros((shapeMax[0][0]+2,shapeMax[0][1]), dtype=torch.float32),
                     torch.randint(low=shapeMax[0][0],high=shapeMax[0][0]+2,size=(2,shapeMax[1][1]+1), dtype=torch.int64),
                     torch.ones((shapeMax[0][0]+2), dtype=torch.int64),
