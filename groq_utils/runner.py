@@ -20,6 +20,7 @@ from model_utils.torch_utils import (
     load_GraphDRP,
 )
 from model_utils.models.ginconv import GINConvNet
+from model_utils.models.gcn import GCNNet
 from model_utils.models.groq_wrapper import GroqWrapper
 from graphdrp_train_improve import metrics_list
 
@@ -58,7 +59,7 @@ class BaseRunner:
         # to accomodate onnx exporting, exact same model though.
         ## TODO: This is a bit wasteful to load the model twice
         ##       Better way would be to instantiate the Groq model with trained weights directly
-        class GNN(GroqWrapper, GINConvNet):
+        class GNN(GroqWrapper, globals()[self.params['model_arch']]):
             pass
         
         groqModel = GNN().to(self.device)
