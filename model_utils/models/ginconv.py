@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from torch.nn import Sequential, Linear, ReLU
 from torch_geometric.nn import GINConv, global_add_pool
 from torch_geometric.nn import global_mean_pool as gap, global_max_pool as gmp
+import torch_geometric 
 
 # GINConv model
 class GINConvNet(torch.nn.Module):
@@ -74,7 +75,6 @@ class GINConvNet(torch.nn.Module):
     def forward(self, data):
         # import ipdb; ipdb.set_trace()
         x, edge_index, batch = data.x, data.edge_index, data.batch
-        #print(data)
         #print(x)
         #print(data.target)
         x = F.relu(self.conv1(x, edge_index))
