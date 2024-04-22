@@ -156,12 +156,12 @@ def run(params: Dict):
     print("\nLoads omics data.")
     omics_obj = drp.OmicsLoader(params)
     # print(omics_obj)
-    ge = omics_obj.dfs['cancer_gene_expression.tsv'] # return gene expression
+    ge = omics_obj.dfs[params['x_data_canc_files'][0][0]] # return gene expression
 
     print("\nLoad drugs data.")
     drugs_obj = drp.DrugsLoader(params)
     # print(drugs_obj)
-    smi = drugs_obj.dfs['drug_SMILES.tsv']  # return SMILES data
+    smi = drugs_obj.dfs[params['x_data_drug_files'][0][0]]  # return SMILES data
 
     # ------------------------------------------------------
     # Further preprocess X data

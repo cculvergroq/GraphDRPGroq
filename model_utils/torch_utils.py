@@ -13,6 +13,36 @@ from .models.gat_gcn import GAT_GCN
 from .models.gcn import GCNNet
 from .models.ginconv import GINConvNet
 
+print(os.environ['CONDA_PREFIX'])
+# optimize and cast onnx
+import numpy as np
+import onnx
+print(onnx.__version__)
+import onnx.tools.update_model_dims
+
+import onnxruntime as ort
+import onnxruntime.quantization as orq
+from onnxconverter_common import float16
+
+from pathlib import Path, PurePath
+
+import torch_geometric
+
+def process_onnx(path: str) -> None:
+    onnx.shape_inference.infer_shapes_path(path, path, strict_mode=True)
+
+    options = ort.SessionOptions()
+
+    # Set graph optimization level
+    options.graph_optimization_level = (
+        ort.GraphOptimizationLevel.ORT_ENABLE_BASIC
+    )
+
+    # To enable model serialization after graph optimization set this
+    options.optimized_model_filepath = path
+    _ = ort.InferenceSession(path, options)
+    onnx.shape_inference.infer_shapes_path(path, strict_mode=True)
+
 
 class TestbedDataset(InMemoryDataset):
     def __init__(self,
@@ -209,6 +239,99 @@ def predicting(model, device, data_loader):
             total_preds = torch.cat((total_preds, output.cpu()), 0)  # preds to tensor
             total_labels = torch.cat((total_labels, data.y.view(-1, 1).cpu()), 0)  # labels to tensor
     return total_labels.numpy().flatten(), total_preds.numpy().flatten()
+            
+
+
+def onnx_export(groq_model, torch_model, device, data_loader):
+    groq_model.eval()
+    torch_model.eval()
+    
+    with torch.no_grad():
+        shapes = {'x': [], 'edge_index': [], 'batch': [], 'target': []}
+        for data in data_loader:
+            shapes['x'].append(list(data.x.shape))
+            shapes['edge_index'].append(list(data.edge_index.shape))
+            shapes['batch'].append(list(data.batch.shape))
+            shapes['target'].append(list(data.target.shape))
+            
+        max_shapes = {key: np.asarray(shapes[key]).max(axis=0, keepdims=True)[0] for key in shapes}
+        #print(max_shapes['x'], type(max_shapes['x']), tuple(max_shapes['x']))
+        dtypes = {'x': torch.float32, 'edge_index': torch.int64, 'batch': torch.int64, 'target': torch.float32}
+
+        # inputs = [
+        #     torch.zeros((max_shapes['x'][0]+2,max_shapes['x'][1]), dtype=torch.float32),
+        #     torch.randint(low=max_shapes['x'][0], high=max_shapes['x'][0]+2, size=(2,max_shapes['edge_index'][1]+1), dtype=torch.int64),
+        #     torch.ones((max_shapes['x'][0]+2), dtype=torch.int64),
+        #     torch.zeros((2,max_shapes['target'][1]), dtype=torch.float32)
+        # ]
+        nnodes = 100
+        nfeatures = 78
+        nedges = 400
+        ntarget = 958
+        inputs = [
+            torch.zeros((nnodes,nfeatures), dtype=torch.float32),
+            torch.randint(low=0, high=nnodes, size=(2,nedges), dtype=torch.int64),
+            torch.ones((nnodes), dtype=torch.int64),
+            torch.zeros((2,ntarget), dtype=torch.float32)
+        ]
+        inputs = tuple(input.to(device) for input in inputs)
+        
+        onnxFilePath = str(PurePath.joinpath(Path.cwd(), 'onnx_outdir', 'graphdrp.onnx'))
+        # print("Input sizes = ", max_shapes)
+        # print(torch.jit.trace(
+        #     groq_model,
+        #     inputs,
+        # ).graph)
+
+        torch.onnx.export(
+            groq_model,
+            inputs,
+            onnxFilePath,
+            input_names=['x','edge_index','batch','target'],
+            output_names=['y', 'unknown'],
+            export_params=True,
+            opset_version=17
+        )
+        onnxFilePathbackup = str(PurePath.joinpath(Path.cwd(), 'onnx_outdir', 'graphdrp_original.onnx'))
+        torch.onnx.export(
+            groq_model,
+            inputs,
+            onnxFilePathbackup,
+            input_names=['x','edge_index','batch','target'],
+            output_names=['y', 'unknown'],
+            export_params=True,
+            opset_version=17
+        )
+        process_onnx(onnxFilePathbackup)
+        
+        ort_session = ort.InferenceSession(onnxFilePath)
+        outputs = ort_session.run(["y","unknown"], {
+            "x": inputs[0].numpy().astype(np.float32),
+            "edge_index": inputs[1].numpy().astype(np.int64),
+            "batch": inputs[2].numpy().astype(np.int64),
+            "target": inputs[3].numpy().astype(np.float32)
+        })
+                
+        process_onnx(onnxFilePath)
+        model_fp16=float16.convert_float_to_float16_model_path(onnxFilePath)
+        onnx.save(model_fp16, onnxFilePath)
+        
+        y, unknown = torch_model(
+            torch_geometric.data.Data(
+                x=inputs[0],
+                edge_index=inputs[1],
+                batch=inputs[2],
+                target=inputs[3],
+            )
+        )
+        
+        if not np.allclose(outputs[0], y.numpy()) and np.allclose(outputs[1], unknown.numpy()):
+            # this actually comes from GroqWrapper.... Or not for GINConv
+            raise ValueError("Onnx runtime mismatch")
+        else:
+            print("Onnx model verified!")
+    
+
 
 
 def str2Class(str):
